@@ -268,7 +268,7 @@ protected:
 			if (!(MessageWindowClass = ::RegisterClassExW(&wcex)))
 				TVPThrowExceptionMessage(TJS_W("register window class failed."));
 		}
-		HWND hwnd = ::CreateWindowExW(0, (LPCWSTR)MessageWindowClass, MSGWND_WINDOWNAME,
+		HWND hwnd = ::CreateWindowExW(0, (LPCWSTR)(ULONG_PTR)MessageWindowClass, MSGWND_WINDOWNAME,
 									  0, 0, 0, 1, 1, HWND_MESSAGE, NULL, hinst, NULL);
 		if (!hwnd) TVPThrowExceptionMessage(TJS_W("create message window failed."));
 		::SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR)this);
@@ -295,7 +295,7 @@ protected:
 	}
 public:
 	static void UnregisterMessageWindowClass() {
-		if (MessageWindowClass != 0 && ::UnregisterClassW((LPCWSTR)MessageWindowClass, ::GetModuleHandle(NULL)))
+		if (MessageWindowClass != 0 && ::UnregisterClassW((LPCWSTR)(ULONG_PTR)MessageWindowClass, ::GetModuleHandle(NULL)))
 			MessageWindowClass = 0;
 	}
 
@@ -363,8 +363,8 @@ public:
 	 * @param process プロセスID
 	 * @param endCode 終了コード
 	 */
-	void terminateProcess(tjs_int64 process, int endCode) {
-		TerminateProcess((HANDLE)process, endCode);
+	void terminateProcess(tTVInteger process, int endCode) {
+		TerminateProcess((HANDLE)(tjs_intptr_t)process, endCode);
 	}
 
 	/**
@@ -372,7 +372,7 @@ public:
 	 * @param target ターゲット
 	 * @praam param パラメータ
 	 */
-	tjs_int64 shellExecute(LPCTSTR target, LPCTSTR param) {
+	tTVInteger shellExecute(LPCTSTR target, LPCTSTR param) {
 		SHELLEXECUTEINFO si;
 		ZeroMemory(&si, sizeof(si));
 		si.cbSize = sizeof(si);
@@ -383,9 +383,9 @@ public:
 		si.fMask = SEE_MASK_FLAG_NO_UI | SEE_MASK_NOCLOSEPROCESS;
 		if (ShellExecuteEx(&si)) {
 			_beginthread(waitProcess, 0, new ExecuteInfo(msgHWND, si.hProcess));
-			return (tjs_int64)si.hProcess;
+			return (tTVInteger)(tjs_intptr_t)si.hProcess;
 		}
-		return (tjs_int64)INVALID_HANDLE_VALUE;
+		return (tTVInteger)(tjs_intptr_t)INVALID_HANDLE_VALUE;
 	}
 
 
@@ -425,24 +425,24 @@ public:
 	 * @param target ターゲット
 	 * @praam param パラメータ
 	 */
-	tjs_int64 commandExecute(ttstr target, ttstr param) {
+	tTVInteger commandExecute(ttstr target, ttstr param) {
 		CommandExecute *cmd = new CommandExecute();
 		if (cmd->start(target, param)) {
 			HANDLE proc = cmd->getProcessHandle();
 			setProcessMap(proc, cmd->getProcessId());
 			_beginthread(waitCommand, 0, new ExecuteInfo(msgHWND, proc, cmd));
-			return (tjs_int64)proc;
+			return (tTVInteger)(tjs_intptr_t)proc;
 		}
 		delete cmd;
-		return (tjs_int64)INVALID_HANDLE_VALUE;
+		return (tTVInteger)(tjs_intptr_t)INVALID_HANDLE_VALUE;
 	}
 
 
 	/**
 	 * シグナル送信
 	 */
-	bool commandSendSignal(tjs_int64 process, bool type) {
-		DWORD id = getProcessMap((HANDLE)process);
+	bool commandSendSignal(tTVInteger process, bool type) {
+		DWORD id = getProcessMap((HANDLE)(tjs_intptr_t)process);
 		DWORD ev = type ? CTRL_BREAK_EVENT : CTRL_C_EVENT;
 
 		BOOL r = ::GenerateConsoleCtrlEvent(ev, id);
@@ -458,11 +458,11 @@ public:
 		}
 		return !!r;
 	}
-	void  setProcessMap(HANDLE proc, DWORD id) { pmap.SetValue((tjs_int64)proc, (tTVInteger)id); }
-	DWORD getProcessMap(HANDLE proc)  { return (DWORD)(pmap.getIntValue((tjs_int64)proc, -1)); }
+	void  setProcessMap(HANDLE proc, DWORD id) { pmap.SetValue((tTVInteger)(tjs_intptr_t)proc, (tTVInteger)id); }
+	DWORD getProcessMap(HANDLE proc)  { return (DWORD)(pmap.getIntValue((tTVInteger)(tjs_intptr_t)proc, -1)); }
 	void removeProcessMap(HANDLE proc) {
 		iTJSDispatch2 *dsp = pmap.GetDispatch();
-		dsp->DeleteMemberByNum(0, (tjs_int64)proc, dsp);
+		dsp->DeleteMemberByNum(0, (tTVInteger)(tjs_intptr_t)proc, dsp);
 	}
 static void getLastError(ttstr &message) {
 	LPVOID lpMessageBuffer;
@@ -508,7 +508,8 @@ NCB_ATTACH_CLASS_WITH_HOOK(WindowShell, Window) {
 
 static void cmdExecLineCallback(void *va, int line, LPCWSTR text) {
 	iTJSDispatch2 *array = (iTJSDispatch2*)va;
-	array->PropSetByNum(TJS_MEMBERENSURE, line, &tTJSVariant(text), array);
+	tTJSVariant text_variant(text);
+	array->PropSetByNum(TJS_MEMBERENSURE, line, &text_variant, array);
 }
 
 /**
