@@ -508,7 +508,8 @@ NCB_ATTACH_CLASS_WITH_HOOK(WindowShell, Window) {
 
 static void cmdExecLineCallback(void *va, int line, LPCWSTR text) {
 	iTJSDispatch2 *array = (iTJSDispatch2*)va;
-	array->PropSetByNum(TJS_MEMBERENSURE, line, &tTJSVariant(text), array);
+	tTJSVariant text_variant(text);
+	array->PropSetByNum(TJS_MEMBERENSURE, line, &text_variant, array);
 }
 
 /**
